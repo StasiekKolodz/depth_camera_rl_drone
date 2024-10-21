@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<robot name="Iris">
+    <webots>
+        <plugin type="webots_tests.robot_bbox_driver.RobotBboxDriver" />
+    </webots>
+</robot>
