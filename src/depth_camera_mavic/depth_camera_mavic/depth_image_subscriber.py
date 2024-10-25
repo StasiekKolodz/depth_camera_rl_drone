@@ -24,7 +24,7 @@ class DepthImageSubscriber(Node):
         try:
             self.current_frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
             self.current_frame = self.clip_depth_image(self.current_frame, self.camera_range)
-            cv2.imshow("Depth Image", self.current_frame)
+            cv2.imshow("Depth Image", cv2.resize(self.current_frame, (256,256)))
             cv2.waitKey(1)
         except Exception as e:
             self.get_logger().error(f"Error converting depth image: {e}")

@@ -7,11 +7,11 @@ class EnvVisualizer:
         self.image = np.zeros((env_boundaries[1]*2, env_boundaries[0]*2, 3), dtype=np.uint8)
 
     def update(self, drone_position, goal_position):
-        drone_position = (int(drone_position[0]), int(drone_position[1]))
-        goal_position = (int(goal_position[0]), int(goal_position[1]))
+        drone_position = (int(drone_position[0]+self.env_boundaries[0]), int(drone_position[1]+self.env_boundaries[1]))
+        goal_position = (int(goal_position[0]+self.env_boundaries[0]), -int(goal_position[1]+self.env_boundaries[1]))
         self.image.fill(0)
-        cv2.circle(self.image, drone_position, 2, (255, 0, 0), -1)  # Drone position in blue
-        cv2.circle(self.image, goal_position, 2, (0, 255, 0), -1)  # Goal position in green
+        cv2.circle(self.image, drone_position, 1, (255, 0, 0), -1)  # Drone position in blue
+        cv2.circle(self.image, goal_position, 1, (0, 255, 0), -1)  # Goal position in green
         cv2.line(self.image, drone_position, goal_position, (0, 0, 255), 1)  # Vector in red
         # cv2.rectangle(image, start_point, end_point, color, thickness)
 

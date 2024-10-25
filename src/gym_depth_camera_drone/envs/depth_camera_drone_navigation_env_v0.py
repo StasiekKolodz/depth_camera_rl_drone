@@ -34,7 +34,6 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.boundary_shape = [8, 8]
         self.env_randomizer = EnvRandomizer(boundary_shape=self.boundary_shape)
         self.goal_point = self.env_randomizer.randomize_goal_point()
-
         # ROS interface
         if not rclpy.ok():
             rclpy.init(args=None)
@@ -230,8 +229,8 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         truncated = False
         info = {}
         self.reset_flag()
-        self.env_visualizer.update(self.gps_position[0:2], self.goal_point)
-        self.env_visualizer.show()
+        # self.env_visualizer.update(self.gps_position[0:2], self.goal_point)
+        # self.env_visualizer.show()
         return observation, reward, terminated, truncated, info
 
     def reset_flag(self, colision=False):
@@ -241,9 +240,10 @@ class DepthCameraDroneNavigation_v0(gym.Env):
 
     def reset(self, seed=None, options=None):
         # self.__node.get_logger().info("Gym enviroment reset")
-        self.env_randomizer.randomize_enviroment()
-        self.goal_point = self.env_randomizer.randomize_goal_point()
-
+        
+        # self.env_randomizer.randomize_enviroment()
+        # self.goal_point = self.env_randomizer.randomize_goal_point()
+        
         self.set_drone_pose(self.drone_init_translation, self.drone_init_rotation)
         self.reset_flag(colision=True)
 

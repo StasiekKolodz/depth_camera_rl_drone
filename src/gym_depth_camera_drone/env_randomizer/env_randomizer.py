@@ -177,6 +177,7 @@ class EnvRandomizer():
             self.obstacles.append(self.get_sphere_dict("obstacle_sphere_"+str(i), [0, 0, 0], 1))
             self.obstacles.append(self.get_cylinder_dict("obstacle_cylinder_"+str(i), [0, 0, 0], [0, 0, 1, 0], 1, 1))
         self.obstacles.append(self.get_box_dict("obstacle_box_2", [0, 0, 0], [0, 0, 1, 0], [1, 1, 1]))
+    
     def randomize_goal_point(self):
         max_boundary = np.array(self.boundary_shape)/2
         # Make sure the goal point is at least 1.5 meters away from the drone initial position
