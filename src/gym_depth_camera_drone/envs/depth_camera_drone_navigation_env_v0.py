@@ -5,6 +5,7 @@ import rclpy
 from drone_interfaces.srv import SetRobotPose, SetRobotPoseRelative
 from std_msgs.msg import Bool
 from sensor_msgs.msg import Image
+from webots_ros2_msgs.msg import FloatStamped
 import math
 from rclpy.action import ActionClient
 from drone_interfaces.action import MoveRelative
@@ -23,7 +24,8 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.depth_image_shape = (64, 64, 1)
         self.camera_fov = 1.5184
         self.camera_range = 10
-        
+        self.success_counter = 0
+        self.ep_counter = 0
         # Gymnasium
         self.observation_space = gym.spaces.Dict(
             {'depth_image': gym.spaces.Box(low=0, high=255, shape=self.depth_image_shape, dtype=np.uint8),
@@ -31,9 +33,10 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.action_space = gym.spaces.Discrete(7)
 
         # Init enviroment randomizer (randomize obstacles and goal)
-        self.boundary_shape = [8, 8]
+        self.boundary_shape = [10, 12]
         self.env_randomizer = EnvRandomizer(boundary_shape=self.boundary_shape)
         self.goal_point = self.env_randomizer.randomize_goal_point()
+        # self.goal_point = np.array([5, 0])
         # ROS interface
         if not rclpy.ok():
             rclpy.init(args=None)
@@ -42,6 +45,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.__node.create_subscription(Bool, 'Depth_Mavic_2_PRO/touch_sensor_colision', self.ts_colision_callback, 1)
         self.__node.create_subscription(Image, 'Depth_Mavic_2_PRO/range_finder/image', self.depth_image_callback, 1)
         self.__node.create_subscription(PointStamped, 'Depth_Mavic_2_PRO/gps', self.gps_callback, 1)
+        self.__node.create_subscription(FloatStamped, 'Depth_Mavic_2_PRO/compass/bearing', self.compass_callback, 1)
         # self.__node.create_subscription(Bool, 'Depth_Mavic_2_PRO/range_finder/point_cloud', self.point_cloud_callback, 10)
         self.robot_pose_cli = self.__node.create_client(SetRobotPose, 'set_robot_pose')
         self.robot_pose_relative_cli = self.__node.create_client(SetRobotPoseRelative, 'set_robot_pose_relative')
@@ -53,6 +57,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.current_target_vec = np.squeeze(np.zeros((3,1)))
 
         self.gps_position = np.zeros((1,3))
+        self.compass_angle = 0
 
         self.warning_flag = False
         self.colision_flag = False
@@ -78,25 +83,37 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.steps_counter = 0
 
         self.env_visualizer = EnvVisualizer(self.boundary_shape)
+        print(f"goal: {self.goal_point}")
+    
+    # def wait_ros_services(self):
+    #     while not self.robot_pose_cli.wait_for_service(timeout_sec=1.0):
+    #         self.__node.get_logger().info('set_robot_pose service not available, waiting again...')
+    #     while not self.robot_pose_relative_cli.wait_for_service(timeout_sec=1.0):
+    #         self.__node.get_logger().info('set_robot_pose_relative service not available, waiting again...')
+    #     while not self.move_drone_cli.wait_for_server(timeout_sec=1.0):
+    #         self.__node.get_logger().info('move_relative service not available, waiting again...')
 
-    def move_drone_no_dynamics(self, translation, rotation_axis_angle, steps_number=1, reset_physics=False):
+    def rotate_vector(self, vector, angle):
+        x = vector[0] * math.cos(angle) - vector[1] * math.sin(angle)
+        y = vector[0] * math.sin(angle) + vector[1] * math.cos(angle)
+        return np.array([x, y])
+
+    def move_drone_no_dynamics(self, translation, yaw_rotation, steps_number=1, reset_physics=False):
         step_translation = np.array(translation)/steps_number
         for step in range(steps_number):
-            self.set_drone_pose_relative(step_translation, [0,0,1,0], reset_physics)
-        self.set_drone_pose_relative([0,0,0], rotation_axis_angle, reset_physics)
+            self.set_drone_pose_relative(step_translation, 0, reset_physics)
+            
+        self.set_drone_pose_relative([0,0,0], yaw_rotation, reset_physics)
 
-    def set_drone_pose_relative(self, translation, rotation_axis_angle, reset_physics=False):
+    def set_drone_pose_relative(self, translation, yaw_rotation=0, reset_physics=False):
 
         # self.__node.get_logger().info(f"sending translation: {translation} rotation: {rotation_axis_angle}-")
         request = SetRobotPoseRelative.Request()
         request.robot_def = self.webots_drone_def
-        request.translation.x = float(translation[0])
-        request.translation.y = float(translation[1])
-        request.translation.z = float(translation[2])
-        request.rotation.x = float(rotation_axis_angle[0])
-        request.rotation.y = float(rotation_axis_angle[1])
-        request.rotation.z = float(rotation_axis_angle[2])
-        request.rotation.angle = float(rotation_axis_angle[3])
+        request.x = float(translation[0])
+        request.y = float(translation[1])
+        request.altitude = float(self.drone_altitude)
+        request.yaw_rotation = float(yaw_rotation)
         request.reset_physics = reset_physics
         future = self.robot_pose_relative_cli.call_async(request)
         rclpy.spin_until_future_complete(self.__node, future)
@@ -150,6 +167,9 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         # cv2.imshow("depth camera", self.current_frame/255)
         # cv2.waitKey(1) 
 
+    def compass_callback(self, msg):
+        self.compass_angle = msg.data
+
     def gps_callback(self, msg):
         gps_point = msg.point
         self.gps_position = np.array([gps_point.x, gps_point.y, gps_point.z])
@@ -173,8 +193,10 @@ class DepthCameraDroneNavigation_v0(gym.Env):
 
     def get_obs(self):
         rclpy.spin_once(self.__node, timeout_sec=0.1)
-        target_vec = self.goal_point - self.gps_position[0:1]
-        observation = {'depth_image': np.copy(self.current_frame), 'target_vec': target_vec}
+        target_vec_global = self.goal_point - self.gps_position[0:2]
+        # Rotate target vector to drone local frame
+        target_vec = self.rotate_vector(target_vec_global, np.radians(self.compass_angle))
+        observation = {'depth_image': np.copy(self.current_frame), 'target_vec': np.copy(target_vec)}
         return observation
 
 
@@ -200,11 +222,13 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         
         
         trans_step, yaw_step = self.get_drone_step(action)
-        self.move_drone_no_dynamics(trans_step, [0,0,1,yaw_step], steps_number=3, reset_physics=True)
+        # self.__node.get_logger().info(f"Step: {trans_step}, {yaw_step}")
+        self.move_drone_no_dynamics(trans_step, yaw_step, steps_number=3, reset_physics=False)
         
         observation = self.get_obs()
-        
+        # self.__node.get_logger().info(f"Observation vec: {observation['target_vec']}")
         if self.is_reached_goal():
+            self.success_counter += 1
             reward = 20
             terminated = True
             # self.__node.get_logger().info(f"Reached goal!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
@@ -212,13 +236,13 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         elif self.colision_flag:
             reward = -10
             terminated = True
-        elif self.distance_to_goal() > 1.5*max(self.boundary_shape):
+        elif self.distance_to_goal() > 2*max(self.boundary_shape):
             reward = -5
             terminated = True
             # self.__node.get_logger().info(f"Terminated, too far from goal")
 
         elif self.warning_flag:
-            reward = -3
+            reward = -2
             terminated = False
         else:
             reward = -1
@@ -240,18 +264,21 @@ class DepthCameraDroneNavigation_v0(gym.Env):
 
     def reset(self, seed=None, options=None):
         # self.__node.get_logger().info("Gym enviroment reset")
-        
-        # self.env_randomizer.randomize_enviroment()
-        # self.goal_point = self.env_randomizer.randomize_goal_point()
-        
-        self.set_drone_pose(self.drone_init_translation, self.drone_init_rotation)
+        self.ep_counter += 1
+        self.env_randomizer.randomize_enviroment(change_propability=0.9)
+        self.goal_point = self.env_randomizer.randomize_goal_point(change_propability=0.9)
+        # print(f"goal: {self.goal_point}")
+        self.set_drone_pose(self.drone_init_translation, self.drone_init_rotation, reset_physics=True)
         self.reset_flag(colision=True)
 
         info = {}
         observation = self.get_obs()
         return observation, info
 
-    
+    def __del__(self):
+        self.__node.destroy_node()
+        rclpy.shutdown()
+        
 # def main(args=None):
 
 #     drone = DepthCameraDroneNavigation_v0()

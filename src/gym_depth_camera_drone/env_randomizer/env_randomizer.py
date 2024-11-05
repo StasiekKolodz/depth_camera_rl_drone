@@ -12,6 +12,7 @@ class EnvRandomizer():
         self.box_params_cli = self.__node.create_client(SetBoxParameters, 'set_box_parameters')
         self.cylinder_params_cli = self.__node.create_client(SetCylinderParameters, 'set_cylinder_parameters')
         self.sphere_params_cli = self.__node.create_client(SetSphereParameters, 'set_sphere_parameters')
+        self.wait_ros_services()
 
         self.boundary_shape = boundary_shape
         self.obstacles = []
@@ -21,7 +22,18 @@ class EnvRandomizer():
         else:
             self.generate_simple_obstacles()
             self.randomize_enviroment()
-    
+
+        self.randomize_goal_point()
+
+    def wait_ros_services(self):
+        while not self.box_params_cli.wait_for_service(timeout_sec=2.0):
+            self.__node.get_logger().info('set_box_parameters service not available, waiting again...')
+        while not self.cylinder_params_cli.wait_for_service(timeout_sec=2.0):
+            self.__node.get_logger().info('set_cylinder_parameters service not available, waiting again...')
+        while not self.sphere_params_cli.wait_for_service(timeout_sec=2.0):
+            self.__node.get_logger().info('set_sphere_parameters service not available, waiting again...')
+        self.__node.get_logger().info('All services available')
+
     def set_obstacle_parameters(self, obstacle_dict):
         if obstacle_dict["type"] == "box":
             return self.set_box_parameters(obstacle_dict)
@@ -108,11 +120,12 @@ class EnvRandomizer():
     def random_obstacle_translation(self):
         min_boundary = -np.array(self.boundary_shape)/2
         max_boundary = np.array(self.boundary_shape)/2
-        # x,y, at least 1.5 meters away from the drone initial position
-        xy_trans = np.random.uniform(low=1.5, high=max_boundary, size=(2,))*np.random.choice([-1, 1], size=(2,))
+        # x at least 2 meters away from the drone initial position
+        x_trans = np.random.uniform(low=2, high=2*max_boundary[0])
+        y_trans = np.random.uniform(low=min_boundary[1], high=max_boundary[1])
         # z
-        z_trans = np.random.normal(loc=2, scale=0.5)
-        return np.append(xy_trans, z_trans).tolist()
+        z_trans = np.random.normal(loc=2, scale=0.1)
+        return [x_trans, y_trans, z_trans]
 
     def random_obstacle_rotation(self):
         """
@@ -140,32 +153,44 @@ class EnvRandomizer():
     def randomize_box(self, box_dict):
         box_dict["translation"] = self.random_obstacle_translation()
         box_dict["rotation"] = self.random_obstacle_rotation()
-        box_dict["size"] = np.random.uniform(low=0.5, high=1, size=(3,)).tolist()
+        if box_dict["translation"][0] < 2.5 and np.absolute(box_dict["translation"][1]) < 2:
+            high_size = 0.5
+        else:
+            high_size = 1
+        box_dict["size"] = np.random.uniform(low=0.2, high=high_size, size=(3,)).tolist()
         return box_dict
     
     def randomize_cylinder(self, cylinder_dict):
         cylinder_dict["translation"] = self.random_obstacle_translation()
         cylinder_dict["rotation"] = self.random_obstacle_rotation()
-        cylinder_dict["radius"] = np.random.uniform(low=0.5, high=1)
-        cylinder_dict["height"] = np.random.uniform(low=0.5, high=1)
+        if cylinder_dict["translation"][0] < 2.5 and np.absolute(cylinder_dict["translation"][1]) < 2:
+            high_size = 0.5
+        else:
+            high_size = 1
+        cylinder_dict["radius"] = np.random.uniform(low=0.2, high=high_size)
+        cylinder_dict["height"] = np.random.uniform(low=0.2, high=high_size)
         return cylinder_dict
     
     def randomize_sphere(self, sphere_dict):
         sphere_dict["translation"] = self.random_obstacle_translation()
         sphere_dict["rotation"] = self.random_obstacle_rotation()
-        sphere_dict["radius"] = np.random.uniform(low=0.5, high=1)
+        if sphere_dict["translation"][0] < 2.5 and np.absolute(sphere_dict["translation"][1]) < 2:
+            high_radius = 0.5
+        else:
+            high_radius = 1
+        sphere_dict["radius"] = np.random.uniform(low=0.2, high=high_radius)
         return sphere_dict
 
     def init_obstacles_from_dict(self):
         pass
 
-    def get_box_dict(self, box_def, translation, rotation, size):
+    def get_box_dict(self, box_def, translation=[0, 0, 0], rotation=[0, 0, 1, 0], size=[1,1,1]):
         return {"type": "box", "def": box_def, "translation": translation, "rotation": rotation, "size": size}
 
-    def get_cylinder_dict(self, cylinder_def, translation, rotation, height, radius, bottom=True, top=True, side=True, subdivision=16):
+    def get_cylinder_dict(self, cylinder_def, translation=[0, 0, 0], rotation=[0, 0, 1, 0], height=1, radius=1, bottom=True, top=True, side=True, subdivision=16):
         return {"type": "cylinder", "def": cylinder_def, "translation": translation, "rotation": rotation, "height": height, "radius": radius, "bottom": bottom, "top": top, "side": side, "subdivision": subdivision}
 
-    def get_sphere_dict(self, sphere_def, translation, radius, subdivision=1, ico=True):
+    def get_sphere_dict(self, sphere_def, translation=[0, 0, 0], radius=1, subdivision=1, ico=True):
         return {"type": "sphere", "def": sphere_def, "translation": translation, "radius": radius, "subdivision": subdivision, "ico": ico}
 
     def generate_simple_obstacles(self, obstacles_number=1):
@@ -173,17 +198,27 @@ class EnvRandomizer():
         Initialize simple obstacles. One box, one sphere and one cylinder.
         """
         for i in range(1, obstacles_number+1):
-            self.obstacles.append(self.get_box_dict("obstacle_box_"+str(i), [0, 0, 0], [0, 0, 1, 0], [1, 1, 1]))
-            self.obstacles.append(self.get_sphere_dict("obstacle_sphere_"+str(i), [0, 0, 0], 1))
-            self.obstacles.append(self.get_cylinder_dict("obstacle_cylinder_"+str(i), [0, 0, 0], [0, 0, 1, 0], 1, 1))
-        self.obstacles.append(self.get_box_dict("obstacle_box_2", [0, 0, 0], [0, 0, 1, 0], [1, 1, 1]))
+            self.obstacles.append(self.get_box_dict("obstacle_box_"+str(i)))
+            self.obstacles.append(self.get_sphere_dict("obstacle_sphere_"+str(i)))
+            self.obstacles.append(self.get_cylinder_dict("obstacle_cylinder_"+str(i)))
+        self.obstacles.append(self.get_box_dict("obstacle_box_2"))
+        self.obstacles.append(self.get_sphere_dict("obstacle_sphere_2"))
+        self.obstacles.append(self.get_cylinder_dict("obstacle_cylinder_2"))
     
-    def randomize_goal_point(self):
-        max_boundary = np.array(self.boundary_shape)/2
-        # Make sure the goal point is at least 1.5 meters away from the drone initial position
-        self.goal_point = np.random.uniform(low=1.5, high=max_boundary, size=(2,))*np.random.choice([-1, 1], size=(2,))
+    def randomize_goal_point(self, change_propability=1):
+        if np.random.rand() < change_propability:
+            max_boundary = np.array(self.boundary_shape)/2
+            # self.goal_point = np.random.uniform(low=max_boundary+1, high=max_boundary+4, size=(2,))*np.append(np.array([1]), np.random.choice([-1, 1], size=(1,)))
+            x_goal = np.random.uniform(low=2*max_boundary[0]+1.5, high=2*max_boundary[0]+4)
+            y_goal = np.random.uniform(low=-max_boundary[1], high=max_boundary[1])
+            self.goal_point = np.array([x_goal, y_goal])
+            self.__node.get_logger().info(f"New goal point: {self.goal_point}")
         return self.goal_point
 
-    def randomize_enviroment(self):
+    def randomize_enviroment(self, change_propability=1):
         for obstacle in self.obstacles:
-            self.set_obstacle_parameters(self.randomize_obstacle(obstacle))
+            if np.random.rand() < change_propability:
+                self.set_obstacle_parameters(self.randomize_obstacle(obstacle))
+    
+    def __del__(self):
+        self.__node.destroy_node()

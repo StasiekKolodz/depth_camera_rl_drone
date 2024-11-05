@@ -1,6 +1,8 @@
 string robot_def
-geometry_msgs/Point translation
-AxisAngle rotation
+float32 x
+float32 y
+float32 altitude
+float32 yaw_rotation
 bool reset_physics
 ---
 int8 result

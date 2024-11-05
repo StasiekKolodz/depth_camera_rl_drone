@@ -28,7 +28,9 @@ def clamp(value, value_min, value_max):
 
 
 class DepthMavicDriver:
-    def init(self, webots_node, properties):
+    def init(self, webots_node, properties=True):
+        self.motors_on = False
+        
         self.__robot = webots_node.robot
         self.__timestep = int(self.__robot.getBasicTimeStep())
 
@@ -65,7 +67,7 @@ class DepthMavicDriver:
         self.__node.create_service(GetGpsPos, "gps_position", self.__gps_position_callback)
         self.touch_sensor_warning_publisher = self.__node.create_publisher(Bool, 'Depth_Mavic_2_PRO/touch_sensor_warning', 10)
         self.touch_sensor_colision_publisher = self.__node.create_publisher(Bool, 'Depth_Mavic_2_PRO/touch_sensor_colision', 10)
-
+        
     def publish_touch_sensors(self):
         ts_warning = self.__touch_sensor_warning.getValue()
         ts_colision = self.__touch_sensor_colision.getValue()
@@ -92,7 +94,14 @@ class DepthMavicDriver:
 
     def step(self):
         rclpy.spin_once(self.__node, timeout_sec=0)
+        
+        # Publish touch sensors values
+        self.publish_touch_sensors()
+        
+        if self.motors_on:
+            self.control_motors()
 
+    def control_motors(self):
         roll_ref = 0
         pitch_ref = 0
 
@@ -104,14 +113,17 @@ class DepthMavicDriver:
         if math.isnan(velocity):
             return
         
-        # Publish touch sensors values
-        self.publish_touch_sensors()
-
+        
+        
         # Allow high level control once the drone is lifted
         if vertical > 0.2:
             # Calculate velocity
-            velocity_x = (pitch / (abs(roll) + abs(pitch))) * velocity
-            velocity_y = - (roll / (abs(roll) + abs(pitch))) * velocity
+            try:
+                velocity_x = (pitch / (abs(roll) + abs(pitch))) * velocity
+                velocity_y = - (roll / (abs(roll) + abs(pitch))) * velocity
+            except ZeroDivisionError:
+                velocity_x = 0
+                velocity_y = 0
 
             # High level controller (linear velocity)
             linear_y_error = self.__target_twist.linear.y - velocity_y

@@ -23,14 +23,14 @@ class WebotsSimManager:
         self.__node.get_logger().info(f"sim manager node created")
 
     def set_robot_pose_callback(self, request, response):
-        self.__node.get_logger().info(f"Service request recieved, robot def: {request.robot_def}")
+        # self.__node.get_logger().info(f"Service request recieved, robot def: {request.robot_def}")
         robot_from_def = self.__robot.getFromDef(request.robot_def)
         translation_field = robot_from_def.getField('translation')
         rotation_field = robot_from_def.getField('rotation')
         
         translation_vec = [request.translation.x, request.translation.y, request.translation.z]
         rotation_axis_angle = [request.rotation.x, request.rotation.y, request.rotation.z, request.rotation.angle]
-        self.__node.get_logger().info(f"translation: {translation_vec} rotation: {rotation_axis_angle}")
+        # self.__node.get_logger().info(f"translation: {translation_vec} rotation: {rotation_axis_angle}")
 
         translation_field.setSFVec3f(translation_vec)
         rotation_field.setSFRotation(rotation_axis_angle)
@@ -42,52 +42,106 @@ class WebotsSimManager:
         return response
     
     def set_robot_pose_relative_callback(self, request, response):
-        self.__node.get_logger().info(f"Service request recieved, robot def: {request.robot_def}")
+        # self.__node.get_logger().info(f"Service request recieved, robot def: {request.robot_def}")
         robot_from_def = self.__robot.getFromDef(request.robot_def)
         translation_field = robot_from_def.getField('translation')
         rotation_field = robot_from_def.getField('rotation')
-        
-        position = robot_from_def.getPosition()
-        orientation = np.array(robot_from_def.getOrientation()).reshape(3,3)
-
-        request_translation_vec = [request.translation.x, request.translation.y, request.translation.z]
-        request_axis_angle = [request.rotation.x, request.rotation.y, request.rotation.z, request.rotation.angle]
-        
-        # Computing absolute rotation by multiplying rotation matrices
-        R_relative = Rotation.from_rotvec([i*request_axis_angle[3] for i in request_axis_angle[0:3]])
-        R_relative = R_relative.as_matrix()
-
-        R_abs = np.matmul(orientation, R_relative)
-        
-        R_abs = Rotation.from_matrix(R_abs)
-        rot_vec = R_abs.as_rotvec()
-        
-        angle = np.linalg.norm(rot_vec)
     
-        # Handle 0 rotation (rotvec = [0,0,0])
-        if angle != 0:
-            rot_axis = rot_vec/angle
-        else:
-            rot_axis = np.array([0,0,1])
-        self.__node.get_logger().info(f"angle: {angle}")
-        rotation_axis_angle = np.append(rot_axis, angle)
+        position = robot_from_def.getPosition()
+        if position[2] > 3:
+            self.__node.get_logger().error(f"Robot is too high: {position[2]}")
+        orientation = np.array(robot_from_def.getOrientation()).reshape(3,3)
+        R_orientation = Rotation.from_matrix(orientation)
+        orientation_euler = R_orientation.as_euler('zyx')
+        z_euler = orientation_euler[0]
+
+        request_translation_vec = [request.x, request.y, 0]
+        request_yaw_angle = request.yaw_rotation
+        
+        yaw_abs = z_euler + request_yaw_angle
+
+        rotation_axis_angle = np.array([0, 0, 1, yaw_abs])
 
         # Translation: p' R*p + T
-        translation_abs = position + np.matmul(orientation, np.array(request_translation_vec))
-
+        translation_abs = position + self.rotate_vector(request_translation_vec, yaw_abs)
+        translation_abs[2] = request.altitude
         # self.__node.get_logger().info(f"translation: {translation_abs} rotation: {rotation_axis_angle}")
 
+        if request.reset_physics:
+            robot_from_def.resetPhysics()
+            
         translation_field.setSFVec3f(translation_abs.tolist())
         rotation_field.setSFRotation(rotation_axis_angle.tolist())
 
         if request.reset_physics:
+            self.__robot.simulationResetPhysics()
             robot_from_def.resetPhysics()
 
         response.result = 1
         return response
+    # def set_robot_pose_relative_callback(self, request, response):
+    #     # self.__node.get_logger().info(f"Service request recieved, robot def: {request.robot_def}")
+    #     robot_from_def = self.__robot.getFromDef(request.robot_def)
+    #     translation_field = robot_from_def.getField('translation')
+    #     rotation_field = robot_from_def.getField('rotation')
+        
+    #     position = robot_from_def.getPosition()
+    #     orientation = np.array(robot_from_def.getOrientation()).reshape(3,3)
+
+    #     request_translation_vec = [request.translation.x, request.translation.y, request.translation.z]
+    #     request_axis_angle = [request.rotation.x, request.rotation.y, request.rotation.z, request.rotation.angle]
+        
+    #     # Computing absolute rotation by multiplying rotation matrices
+    #     R_relative = Rotation.from_rotvec([i*request_axis_angle[3] for i in request_axis_angle[0:3]])
+    #     R_relative = R_relative.as_matrix()
+
+    #     # Assuming current orientation is flat (pith and roll = 0) to get rid of cumulating errors in rotation
+    #     # orientation_euler = Rotation.from_matrix(orientation).as_euler('zyx')
+    #     # orientation_yaw = Rotation.from_euler('zyx', [orientation_euler[0], 0, 0]).as_matrix()
+    #     orientation_yaw = orientation
+    #     R_abs = np.matmul(orientation_yaw, R_relative)
+        
+    #     R_abs = Rotation.from_matrix(R_abs)
+    #     rot_vec = R_abs.as_rotvec()
+        
+    #     angle = np.linalg.norm(rot_vec)
+    
+    #     # Handle 0 rotation (rotvec = [0,0,0])
+    #     if angle != 0:
+    #         rot_axis = rot_vec/angle
+    #     else:
+    #         rot_axis = np.array([0,0,1])
+    #     # self.__node.get_logger().info(f"angle: {angle}")
+    #     # self.__node.get_logger().info(f"orientation_yaw: {orientation_yaw}")
+    #     rotation_axis_angle = np.append(rot_axis, angle)
+
+    #     # Translation: p' = R*p + T
+    #     translation_abs = position + np.matmul(orientation_yaw, np.array(request_translation_vec))
+        
+    #     if translation_abs[2] > 3:
+    #         translation_abs[2] = 2
+          
+    #     if np.isnan(translation_abs).any():
+    #         self.__node.get_logger().error(f"Translation is nan")
+    #         self.__node.get_logger().error(f"R_abs: {R_abs}")
+    #         self.__node.get_logger().error(f"position: {position}")
+    #         self.__node.get_logger().error(f"orientation_yaw: {orientation_yaw}")
+    #         while True:
+    #             pass
+    #         response.result = 0
+    #         return response
+
+    #     translation_field.setSFVec3f(translation_abs.tolist())
+    #     rotation_field.setSFRotation(rotation_axis_angle.tolist())
+
+    #     if request.reset_physics:
+    #         robot_from_def.resetPhysics()
+
+    #     response.result = 1
+    #     return response
 
     def set_obstacle_parameter_callback(self, request, response):
-        self.__node.get_logger().info(f"Set obstacle param srv request recieved, obstacle def: {request.obstacle_def}")
+        # self.__node.get_logger().info(f"Set obstacle param srv request recieved, obstacle def: {request.obstacle_def}")
         obstacle_from_def = self.__robot.getFromDef(f'{request.obstacle_def}.obstacle_box_1_boundingObject')
         # bo = obstacle_from_def.getField(f'{request.obstacle_def}.obstacle_box_1_boundingObject')
         sz = obstacle_from_def.getField('size')
@@ -101,6 +155,10 @@ class WebotsSimManager:
         
         # Retrieve the box object
         box_from_def = self.__robot.getFromDef(box_def)
+        if box_from_def is None:
+            self.__node.get_logger().error(f"Box {box_def} not found")
+            response.result = 0
+            return response
         bo_from_def = self.__robot.getFromDef(f"{box_def}.{box_def}_boundingObject")
         shape_from_def = self.__robot.getFromDef(f"{box_def}.{box_def}_shape.{box_def}_geometry")
 
@@ -123,12 +181,13 @@ class WebotsSimManager:
     def set_cylinder_parameters_callback(self, request, response):
         cylinder_def = request.cylinder_def
         self.__node.get_logger().info(f"Set cylinder param srv request received, cylinder def: {cylinder_def}")
-        
-        
-        self.__node.get_logger().info(f"{cylinder_def}.{cylinder_def}_shape.{cylinder_def}_geometry")
-        
+                
         # Retrieve object from def
         cylinder_from_def = self.__robot.getFromDef(cylinder_def)
+        if cylinder_from_def is None:
+            self.__node.get_logger().error(f"Cylinder {cylinder_def} not found")
+            response.result = 0
+            return response
         shape_from_def = self.__robot.getFromDef(f"{cylinder_def}.{cylinder_def}_shape.{cylinder_def}_geometry")
         bo_from_def = self.__robot.getFromDef(f"{cylinder_def}.{cylinder_def}_boundingObject")
 
@@ -180,6 +239,10 @@ class WebotsSimManager:
         
         # Retrieve the sphere object
         sphere_from_def = self.__robot.getFromDef(sphere_def)
+        if sphere_from_def is None:
+            self.__node.get_logger().error(f"Sphere {sphere_def} not found")
+            response.result = 0
+            return response
         bo_from_def = self.__robot.getFromDef(f"{sphere_def}.{sphere_def}_boundingObject")
         shape_from_def = self.__robot.getFromDef(f"{sphere_def}.{sphere_def}_shape.{sphere_def}_geometry")
 
@@ -204,6 +267,12 @@ class WebotsSimManager:
 
         response.result = 1
         return response
+
+    def rotate_vector(self, vector, z_angle):
+        x = vector[0] * math.cos(z_angle) - vector[1] * math.sin(z_angle)
+        y = vector[0] * math.sin(z_angle) + vector[1] * math.cos(z_angle)
+        z = vector[2]
+        return np.array([x, y, z])
 
     def step(self):
         rclpy.spin_once(self.__node, timeout_sec=0)
