@@ -18,7 +18,7 @@ from env_randomizer.env_randomizer import EnvRandomizer
 from utils.env_vizualizer import EnvVisualizer
 class DepthCameraDroneNavigation_v0(gym.Env):
     
-    def __init__(self):
+    def __init__(self, discrete_action_space=True, no_dynamics=True):
         self.webots_drone_def = "Depth_Mavic_2_PRO"
 
         self.depth_image_shape = (64, 64, 1)
@@ -27,10 +27,15 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.success_counter = 0
         self.ep_counter = 0
         # Gymnasium
+        self.discrete_action_space = discrete_action_space
         self.observation_space = gym.spaces.Dict(
             {'depth_image': gym.spaces.Box(low=0, high=255, shape=self.depth_image_shape, dtype=np.uint8),
              'target_vec': gym.spaces.Box(low=-np.inf, high=np.inf, shape=(2,), dtype=np.float64)})
-        self.action_space = gym.spaces.Discrete(7)
+
+        if self.discrete_action_space:
+            self.action_space = gym.spaces.Discrete(7)
+        else:
+            self.action_space = gym.spaces.Box(low=-1, high=+1, shape=(2,), dtype=np.float64)
 
         # Init enviroment randomizer (randomize obstacles and goal)
         self.boundary_shape = [10, 12]
@@ -54,7 +59,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.cv_bridge = CvBridge()
         self.current_frame = np.zeros((self.depth_image_shape), dtype=np.float32)
         
-        self.current_target_vec = np.squeeze(np.zeros((3,1)))
+        self.current_target_vec = np.squeeze(np.zeros((2,1)))
 
         self.gps_position = np.zeros((1,3))
         self.compass_angle = 0
@@ -74,7 +79,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         self.step_length = 1  # meter
 
         self.drone_busy = False
-        self.no_dynamics = False
+        self.no_dynamics = no_dynamics
 
         self.drone_altitude = 2 #meters
         self.drone_init_translation = [0, 0, self.drone_altitude]
@@ -210,7 +215,8 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         pass
 
     def get_drone_step(self, action):
-        action = self.action_dictionary[action]
+        if self.discrete_action_space:
+            action = self.action_dictionary[action]
         forward_step = np.cos(action[0] * 22.5 / 180 * np.pi)
         side_step = np.sin(action[0] * 22.5 / 180 * np.pi)
         yaw_step = action[1] * 22.5 / 180 * np.pi
@@ -223,7 +229,12 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         
         trans_step, yaw_step = self.get_drone_step(action)
         # self.__node.get_logger().info(f"Step: {trans_step}, {yaw_step}")
-        self.move_drone_no_dynamics(trans_step, yaw_step, steps_number=3, reset_physics=False)
+        if self.no_dynamics:
+            self.move_drone_no_dynamics(trans_step, yaw_step, steps_number=3, reset_physics=False)
+        else:
+            print("Dynamics not implemented")
+            # TODO: Implement movement with dynamicss
+            # self.move_relative()
         
         observation = self.get_obs()
         # self.__node.get_logger().info(f"Observation vec: {observation['target_vec']}")

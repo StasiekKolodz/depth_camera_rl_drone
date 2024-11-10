@@ -212,7 +212,7 @@ class EnvRandomizer():
             x_goal = np.random.uniform(low=2*max_boundary[0]+1.5, high=2*max_boundary[0]+4)
             y_goal = np.random.uniform(low=-max_boundary[1], high=max_boundary[1])
             self.goal_point = np.array([x_goal, y_goal])
-            self.__node.get_logger().info(f"New goal point: {self.goal_point}")
+            # self.__node.get_logger().info(f"New goal point: {self.goal_point}")
         return self.goal_point
 
     def randomize_enviroment(self, change_propability=1):
