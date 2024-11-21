@@ -36,14 +36,10 @@ if __name__ == '__main__':
         return func
 
     model = SAC("MultiInputPolicy",env, 
-                learning_rate=linear_schedule(0.0003), 
-                batch_size=512,
-                learning_starts=512,
-                gradient_steps=2,
-                target_update_interval=5,
+                learning_rate=linear_schedule(0.0001), 
                 verbose=1, 
                 tensorboard_log=tensorboard_log)
     print(model.policy)
     # model = SAC.load("./rl_model_23_1000000_steps.zip", env, tensorboard_log=tensorboard_log, custom_objects=load_kwargs)
-    checkpoint_callback = CheckpointCallback(save_freq=50_000, save_path='./saved_models/SAC', name_prefix='sac_model_2')
+    checkpoint_callback = CheckpointCallback(save_freq=50_000, save_path='./saved_models/SAC', name_prefix='sac_model_3')
     model.learn(total_timesteps=int(0.11e6), callback=checkpoint_callback, progress_bar=True)

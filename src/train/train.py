@@ -48,6 +48,23 @@ if __name__ == '__main__':
     #                          deterministic=True, render=False, verbose=1, n_eval_episodes=3)
     
     # model = PPO("MultiInputPolicy", env, gamma=0.95,n_steps=2048*2, batch_size=256, verbose=1,learning_rate=linear_schedule(0.0004), policy_kwargs=policy_kwargs, tensorboard_log=tensorboard_log)
-    model = PPO.load("./saved_models/rl_model_23_1000000_steps.zip", env, tensorboard_log=tensorboard_log)
-    checkpoint_callback = CheckpointCallback(save_freq=200_000, save_path='./saved_models', name_prefix='rl_model_23_3')
+    # model = PPO.load("./saved_models/rl_model_23_1000000_steps.zip", env, tensorboard_log=tensorboard_log)
+    model = PPO("MultiInputPolicy",
+                env,
+                verbose=1,
+                policy_kwargs=policy_kwargs,
+                tensorboard_log=tensorboard_log,
+                batch_size=32,
+                n_steps=256,
+                gamma=0.95,
+                learning_rate=0.0003159837054197309,
+                ent_coef=0.024950075963317653,
+                clip_range=0.2,
+                n_epochs=10,
+                gae_lambda=0.9,
+                max_grad_norm=0.3,
+                vf_coef=0.3331816304361325,
+                )
+
+    checkpoint_callback = CheckpointCallback(save_freq=200_000, save_path='./saved_models/PPO', name_prefix='optuna_1')
     model.learn(total_timesteps=int(1.6e6), callback=checkpoint_callback, progress_bar=True)

@@ -16,11 +16,12 @@ from geometry_msgs.msg import Twist, Vector3, Point, PointStamped
 
 from env_randomizer.env_randomizer import EnvRandomizer
 from utils.env_vizualizer import EnvVisualizer
+
 class DepthCameraDroneNavigation_v0(gym.Env):
     
     def __init__(self, discrete_action_space=True, no_dynamics=True):
         self.webots_drone_def = "Depth_Mavic_2_PRO"
-
+        self.__node = None
         self.depth_image_shape = (64, 64, 1)
         self.camera_fov = 1.5184
         self.camera_range = 10
@@ -223,6 +224,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         return [self.step_length * forward_step, self.step_length * side_step, 0], yaw_step
     
     def step(self, action):
+        self.steps_counter += 1
         # rclpy.spin(self.__node)
         # self.__node.get_logger().info("Gym enviroment step")
         
@@ -238,6 +240,8 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         
         observation = self.get_obs()
         # self.__node.get_logger().info(f"Observation vec: {observation['target_vec']}")
+        truncated = False
+            # self.__node.get_logger().info(f"Terminated, too many steps")
         if self.is_reached_goal():
             self.success_counter += 1
             reward = 20
@@ -251,7 +255,10 @@ class DepthCameraDroneNavigation_v0(gym.Env):
             reward = -5
             terminated = True
             # self.__node.get_logger().info(f"Terminated, too far from goal")
-
+        elif self.steps_counter > 100:
+            terminated = False
+            truncated = True
+            reward = -10
         elif self.warning_flag:
             reward = -2
             terminated = False
@@ -261,7 +268,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
     
         # self.__node.get_logger().info(f"Flags: {self.warning_flag}  {self.colision_flag}")
 
-        truncated = False
+        
         info = {}
         self.reset_flag()
         # self.env_visualizer.update(self.gps_position[0:2], self.goal_point)
@@ -275,6 +282,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
 
     def reset(self, seed=None, options=None):
         # self.__node.get_logger().info("Gym enviroment reset")
+        self.steps_counter = 0
         self.ep_counter += 1
         self.env_randomizer.randomize_enviroment(change_propability=0.9)
         self.goal_point = self.env_randomizer.randomize_goal_point(change_propability=0.9)
@@ -286,9 +294,13 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         observation = self.get_obs()
         return observation, info
 
+    def render():
+        pass
     def __del__(self):
-        self.__node.destroy_node()
-        rclpy.shutdown()
+        if self.__node is not None:
+            self.__node.destroy_node()
+            rclpy.shutdown()
+            print("Node destroyed")
         
 # def main(args=None):
 

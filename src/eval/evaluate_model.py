@@ -8,11 +8,11 @@ import gym_depth_camera_drone.envs
 
 
 if __name__ == '__main__':
-    env = gym.make("depth_navigation-v0", discrete_action_space=False)
+    env = gym.make("depth_navigation-v0", discrete_action_space=True)
     env = gym.wrappers.RecordEpisodeStatistics(env, deque_size=100_000_0)
     print("Env created")
-    # model = PPO.load("../train/saved_models/SAC/sac_model_1_300000_steps.zip")
-    model = SAC.load("../train/saved_models/SAC/sac_model_1_300000_steps.zip")
+    model = PPO.load("../train/saved_models/PPO/rl_model_24_1000000_steps.zip")
+    # model = SAC.load("../train/saved_models/SAC/sac_model_1_300000_steps.zip")
     print(model.policy)
     print("Model loaded")
 
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     #     if dones:
     #         obs, info = env.reset()
         
-    mean_rew, std_rew = evaluate_policy(model, env, n_eval_episodes=100, deterministic=True)
+    mean_rew, std_rew = evaluate_policy(model, env, n_eval_episodes=20, deterministic=True)
     print(f"Mean reward: {mean_rew}, std reward: {std_rew}")
     print(f"Success counter {env.success_counter}")
     print(f"Ep counter {env.ep_counter}")
