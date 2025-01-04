@@ -14,8 +14,8 @@ import cv2
 import numpy as np
 from geometry_msgs.msg import Twist, Vector3, Point, PointStamped
 
-from env_randomizer.env_randomizer import EnvRandomizer
-from utils.env_vizualizer import EnvVisualizer
+from gym_depth_camera_drone.env_randomizer.env_randomizer import EnvRandomizer
+# from utils.env_vizualizer import EnvVisualizer
 
 class DepthCameraDroneNavigation_v0(gym.Env):
     
@@ -39,7 +39,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
             self.action_space = gym.spaces.Box(low=-1, high=+1, shape=(2,), dtype=np.float64)
 
         # Init enviroment randomizer (randomize obstacles and goal)
-        self.boundary_shape = [10, 12]
+        self.boundary_shape = [9, 12]
         self.env_randomizer = EnvRandomizer(boundary_shape=self.boundary_shape)
         self.goal_point = self.env_randomizer.randomize_goal_point()
         # self.goal_point = np.array([5, 0])
@@ -77,7 +77,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
                                   6: (-1, -1)}
 
         # Drone parameters and values
-        self.step_length = 1  # meter
+        self.step_length = 0.5  # meter
 
         self.drone_busy = False
         self.no_dynamics = no_dynamics
@@ -88,7 +88,7 @@ class DepthCameraDroneNavigation_v0(gym.Env):
 
         self.steps_counter = 0
 
-        self.env_visualizer = EnvVisualizer(self.boundary_shape)
+        # self.env_visualizer = EnvVisualizer(self.boundary_shape)
         print(f"goal: {self.goal_point}")
     
     # def wait_ros_services(self):
@@ -232,8 +232,10 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         trans_step, yaw_step = self.get_drone_step(action)
         # self.__node.get_logger().info(f"Step: {trans_step}, {yaw_step}")
         if self.no_dynamics:
-            self.move_drone_no_dynamics(trans_step, yaw_step, steps_number=3, reset_physics=False)
+            self.move_drone_no_dynamics(trans_step, yaw_step, steps_number=6, reset_physics=False)
         else:
+            # self.move_relative(trans_step, 1, yaw_step, 0.5)
+            # self.wait_ready()
             print("Dynamics not implemented")
             # TODO: Implement movement with dynamicss
             # self.move_relative()
@@ -244,15 +246,15 @@ class DepthCameraDroneNavigation_v0(gym.Env):
             # self.__node.get_logger().info(f"Terminated, too many steps")
         if self.is_reached_goal():
             self.success_counter += 1
-            reward = 20
+            reward = 30
             terminated = True
             # self.__node.get_logger().info(f"Reached goal!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
         elif self.colision_flag:
-            reward = -10
+            reward = -25
             terminated = True
         elif self.distance_to_goal() > 2*max(self.boundary_shape):
-            reward = -5
+            reward = -20
             terminated = True
             # self.__node.get_logger().info(f"Terminated, too far from goal")
         elif self.steps_counter > 100:
@@ -260,10 +262,10 @@ class DepthCameraDroneNavigation_v0(gym.Env):
             truncated = True
             reward = -10
         elif self.warning_flag:
-            reward = -2
+            reward = -1
             terminated = False
         else:
-            reward = -1
+            reward = -0.5
             terminated = False
     
         # self.__node.get_logger().info(f"Flags: {self.warning_flag}  {self.colision_flag}")
@@ -284,8 +286,8 @@ class DepthCameraDroneNavigation_v0(gym.Env):
         # self.__node.get_logger().info("Gym enviroment reset")
         self.steps_counter = 0
         self.ep_counter += 1
-        self.env_randomizer.randomize_enviroment(change_propability=0.9)
-        self.goal_point = self.env_randomizer.randomize_goal_point(change_propability=0.9)
+        self.env_randomizer.randomize_enviroment(change_propability=1)
+        self.goal_point = self.env_randomizer.randomize_goal_point(change_propability=1)
         # print(f"goal: {self.goal_point}")
         self.set_drone_pose(self.drone_init_translation, self.drone_init_rotation, reset_physics=True)
         self.reset_flag(colision=True)
@@ -299,7 +301,6 @@ class DepthCameraDroneNavigation_v0(gym.Env):
     def __del__(self):
         if self.__node is not None:
             self.__node.destroy_node()
-            rclpy.shutdown()
             print("Node destroyed")
         
 # def main(args=None):

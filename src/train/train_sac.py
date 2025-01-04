@@ -41,5 +41,5 @@ if __name__ == '__main__':
                 tensorboard_log=tensorboard_log)
     print(model.policy)
     # model = SAC.load("./rl_model_23_1000000_steps.zip", env, tensorboard_log=tensorboard_log, custom_objects=load_kwargs)
-    checkpoint_callback = CheckpointCallback(save_freq=50_000, save_path='./saved_models/SAC', name_prefix='sac_model_3')
+    checkpoint_callback = CheckpointCallback(save_freq=50_000, save_path='./saved_models/SAC', name_prefix='sac_model_1')
     model.learn(total_timesteps=int(0.11e6), callback=checkpoint_callback, progress_bar=True)

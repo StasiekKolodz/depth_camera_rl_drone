@@ -14,11 +14,10 @@ from stable_baselines3.common.callbacks import CheckpointCallback, ProgressBarCa
 import sys
 from typing import Callable
 
-# adding Folder_2 to the system path
-# sys.path.insert(0, '/home/stas/Thesis/rl_drone/src/gym_depth_camera_drone')
-sys.path.append('~/Thesis/rl_drone/src/gym_depth_camera_drone')
-sys.path.append('/home/stas/Thesis/rl_drone/src/gym_depth_camera_drone')
-sys.path.append('/home/stas/Thesis/rl_drone/src')
+
+src_dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(src_dir_path)
+
 import gym_depth_camera_drone.envs  
 from stable_baselines3.common.vec_env import vec_transpose
 
@@ -31,12 +30,19 @@ if __name__ == '__main__':
 
     tensorboard_log = "./ppo_tensorboard_log"
 
+    # policy_kwargs = {
+    # "net_arch": {
+    #     "pi": [1024,512,256],
+    #     "vf": [1024,512,256],
+    #     }
+    # }
     policy_kwargs = {
     "net_arch": {
-        "pi": [1024,512,256],
-        "vf": [1024,512,256],
+        "pi": [64, 64],
+        "vf": [64, 64],
         }
     }
+
 
     def linear_schedule(initial_value: float) -> Callable[[float], float]:
         def func(progress_remaining: float) -> float:
@@ -54,17 +60,9 @@ if __name__ == '__main__':
                 verbose=1,
                 policy_kwargs=policy_kwargs,
                 tensorboard_log=tensorboard_log,
-                batch_size=32,
-                n_steps=256,
-                gamma=0.95,
-                learning_rate=0.0003159837054197309,
-                ent_coef=0.024950075963317653,
-                clip_range=0.2,
-                n_epochs=10,
-                gae_lambda=0.9,
-                max_grad_norm=0.3,
-                vf_coef=0.3331816304361325,
+                batch_size=512,
+                learning_rate=linear_schedule(0.0002),
                 )
 
-    checkpoint_callback = CheckpointCallback(save_freq=200_000, save_path='./saved_models/PPO', name_prefix='optuna_1')
-    model.learn(total_timesteps=int(1.6e6), callback=checkpoint_callback, progress_bar=True)
+    checkpoint_callback = CheckpointCallback(save_freq=200_000, save_path='./saved_models/PPO', name_prefix='small_1')
+    model.learn(total_timesteps=int(1e6), callback=checkpoint_callback, progress_bar=True)

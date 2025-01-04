@@ -6,6 +6,7 @@ maximizedDockId: -1
 centralWidgetVisible: 1
 orthographicViewHeight: 1
 textFiles: -1
+globalOptionalRendering: RangeFinderFrustums::CameraFrustums
 consoles: Console:All:All
 renderingDevicePerspectives: Depth_Mavic_2_PRO:camera;1;1;0;0
 renderingDevicePerspectives: Depth_Mavic_2_PRO:range-finder;1;1;0;0

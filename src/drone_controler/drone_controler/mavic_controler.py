@@ -47,7 +47,7 @@ class MavicControler(Node):
         
         # Services
         
-        self.linear_precision = 0.3
+        self.linear_precision = 0.6
         self.angular_precision = 5
 
         self.get_logger().info(f"-- Mavic controler node created --")
@@ -98,7 +98,7 @@ class MavicControler(Node):
             speed_vec = np.array([0.0, 0.0, 0.0])
 
         
-        linear_twist = -1*speed_vec
+        linear_twist = speed_vec
         if target_angle-current_angle<180 and target_angle-current_angle>0:
             angular_twist = float(-1*target_rotation_speed) 
         else:
@@ -114,7 +114,7 @@ class MavicControler(Node):
             
             current_pos = np.array([self.gps_point.x, self.gps_point.y, self.gps_point.z])            
             remaining_distance = np.linalg.norm(target_pos - current_pos)
-            # linear_twist = -1*(target_pos - current_pos)/remaining_distance*target_linear_speed
+            # linear_twist = (target_pos - current_pos)/remaining_distance*target_linear_speed
             # self.publish_drone_vel(linear=linear_twist, angular=0.0)
             
         # Move angular

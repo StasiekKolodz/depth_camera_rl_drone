@@ -6,6 +6,7 @@ from rclpy.utilities import ok, get_default_context
 class EnvRandomizer():
     def __init__(self, boundary_shape=[20, 20] , max_obstacles=None):
         # Init ros interface
+        self.node = None
         if not rclpy.ok():
             rclpy.init(args=None)
         self.__node = rclpy.create_node('env_randomizer')
@@ -44,8 +45,7 @@ class EnvRandomizer():
         else:
             self.__node.get_logger().error(f"Obstacle type {obstacle_dict['type']} not recognized.")
             return None
-        
-    
+          
     def set_box_parameters(self, box_obstacle_dict):
         box_def = box_obstacle_dict["def"]
         translation = box_obstacle_dict["translation"]
@@ -117,6 +117,10 @@ class EnvRandomizer():
         rclpy.spin_until_future_complete(self.__node, future)
         return future.result()
 
+    def set_goal_cylinder_parameters(self):
+        goal_cylinder_dict = self.get_cylinder_dict("goal_cylinder", translation=[self.goal_point[0], self.goal_point[1], 0], radius=0.3, height=0.1, bottom=False, top=True, side=False)
+        self.set_cylinder_parameters(goal_cylinder_dict)  
+
     def random_obstacle_translation(self):
         min_boundary = -np.array(self.boundary_shape)/2
         max_boundary = np.array(self.boundary_shape)/2
@@ -153,7 +157,7 @@ class EnvRandomizer():
     def randomize_box(self, box_dict):
         box_dict["translation"] = self.random_obstacle_translation()
         box_dict["rotation"] = self.random_obstacle_rotation()
-        if box_dict["translation"][0] < 2.5 and np.absolute(box_dict["translation"][1]) < 2:
+        if box_dict["translation"][0] < 3 and np.absolute(box_dict["translation"][1]) < 2:
             high_size = 0.5
         else:
             high_size = 1
@@ -163,7 +167,7 @@ class EnvRandomizer():
     def randomize_cylinder(self, cylinder_dict):
         cylinder_dict["translation"] = self.random_obstacle_translation()
         cylinder_dict["rotation"] = self.random_obstacle_rotation()
-        if cylinder_dict["translation"][0] < 2.5 and np.absolute(cylinder_dict["translation"][1]) < 2:
+        if cylinder_dict["translation"][0] < 3 and np.absolute(cylinder_dict["translation"][1]) < 2:
             high_size = 0.5
         else:
             high_size = 1
@@ -174,7 +178,7 @@ class EnvRandomizer():
     def randomize_sphere(self, sphere_dict):
         sphere_dict["translation"] = self.random_obstacle_translation()
         sphere_dict["rotation"] = self.random_obstacle_rotation()
-        if sphere_dict["translation"][0] < 2.5 and np.absolute(sphere_dict["translation"][1]) < 2:
+        if sphere_dict["translation"][0] < 3 and np.absolute(sphere_dict["translation"][1]) < 2:
             high_radius = 0.5
         else:
             high_radius = 1
@@ -212,6 +216,7 @@ class EnvRandomizer():
             x_goal = np.random.uniform(low=2*max_boundary[0]+1.5, high=2*max_boundary[0]+4)
             y_goal = np.random.uniform(low=-max_boundary[1], high=max_boundary[1])
             self.goal_point = np.array([x_goal, y_goal])
+            self.set_goal_cylinder_parameters()
             # self.__node.get_logger().info(f"New goal point: {self.goal_point}")
         return self.goal_point
 
@@ -221,4 +226,6 @@ class EnvRandomizer():
                 self.set_obstacle_parameters(self.randomize_obstacle(obstacle))
     
     def __del__(self):
-        self.__node.destroy_node()
+        if self.__node is not None:
+            self.__node.destroy_node()
+            print("rand Node destroyed")

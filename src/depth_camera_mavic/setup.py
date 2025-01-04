@@ -10,6 +10,8 @@ data_files.append(('share/' + package_name + '/launch', ['launch/robot_launch.py
 data_files.append(('share/' + package_name + '/worlds', [
     '../worlds/depth_mavic_world.wbt',
     '../worlds/depth_mavic_world_no_gravity.wbt',
+    '../worlds/depth_mavic_world_no_gravity_textures.wbt',
+    '../worlds/depth_mavic_world_no_gravity_textures_real.wbt',
 ]))
 
 data_files.append(('share/' + package_name + '/resource', [

@@ -1,6 +1,0 @@
-<?xml version="1.0" ?>
-<robot name="ghost_robot">
-    <webots>
-        <plugin type="webots_tests.ghost_robot_driver.GhostRobotDriver" />
-    </webots>
-</robot>

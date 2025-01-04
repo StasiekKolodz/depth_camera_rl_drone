@@ -1,0 +1,203 @@
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/robots/dji/mavic/protos/Mavic2Pro.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/Asphalt.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/FlexibleAluminiumDuct.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/RustyMetal.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/Cardboard.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/vehicles/protos/abstract/GenericTireAppearance.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/ScratchedPaint.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/appearances/protos/Plaster.proto"
+
+WorldInfo {
+  info [
+    "This demonstration shows a DJI Mavic 2 PRO flying over a rural area by exposing the ROS2 Twist topic."
+  ]
+  title "ROS2 and DJI Mavic 2 PRO demo"
+  gravity 0
+  basicTimeStep 8
+  defaultDamping Damping {
+    linear 0.5
+    angular 0.5
+  }
+}
+Viewpoint {
+  orientation -0.06345919827593967 -0.018589933878514976 0.997811277002103 3.7599932887105356
+  position 3.7006014502625133 2.0294506508993226 0.7053214483716913
+  near 0.2
+  follow "Mavic 2 PRO"
+  followSmoothness 0.2
+}
+TexturedBackgroundLight {
+  luminosity 2
+}
+Floor {
+  size 100 100
+  tileSize 6 6
+  appearance Asphalt {
+  }
+}
+DEF obstacle_box_1 Solid {
+  translation 1 0 0
+  children [
+    DEF obstacle_box_1_shape Shape {
+      appearance ScratchedPaint {
+      }
+      geometry DEF obstacle_box_1_geometry Box {
+        size 0.1 0.1 0.1
+      }
+    }
+  ]
+  boundingObject DEF obstacle_box_1_boundingObject Box {
+    size 0.1 0.1 0.1
+  }
+}
+DEF obstacle_box_2 Solid {
+  translation 1 0 0
+  children [
+    DEF obstacle_box_2_shape Shape {
+      appearance Plaster {
+      }
+      geometry DEF obstacle_box_2_geometry Box {
+        size 0.1 0.1 0.1
+      }
+    }
+  ]
+  name "solid(3)"
+  boundingObject DEF obstacle_box_2_boundingObject Box {
+    size 0.1 0.1 0.1
+  }
+}
+DEF obstacle_sphere_1 Solid {
+  translation 1 0 0
+  children [
+    DEF obstacle_sphere_1_shape Shape {
+      appearance FlexibleAluminiumDuct {
+      }
+      geometry DEF obstacle_sphere_1_geometry Sphere {
+        radius 0.1
+      }
+    }
+  ]
+  name "solid(1)"
+  boundingObject DEF obstacle_sphere_1_boundingObject Sphere {
+    radius 0.1
+  }
+}
+DEF obstacle_sphere_2 Solid {
+  translation 1 0 0
+  children [
+    DEF obstacle_sphere_2_shape Shape {
+      appearance Cardboard {
+      }
+      geometry DEF obstacle_sphere_2_geometry Sphere {
+        radius 0.1
+      }
+    }
+  ]
+  name "solid(4)"
+  boundingObject DEF obstacle_sphere_2_boundingObject Sphere {
+    radius 0.1
+  }
+}
+DEF obstacle_cylinder_1 Solid {
+  translation 1 0 0
+  children [
+    DEF obstacle_cylinder_1_shape Shape {
+      appearance RustyMetal {
+      }
+      geometry DEF obstacle_cylinder_1_geometry Cylinder {
+        height 0.1
+        radius 0.05
+      }
+    }
+  ]
+  name "solid(2)"
+  boundingObject DEF obstacle_cylinder_1_boundingObject Cylinder {
+    height 0.1
+    radius 0.05
+  }
+}
+DEF obstacle_cylinder_2 Solid {
+  translation 1 0 0
+  children [
+    DEF obstacle_cylinder_2_shape Shape {
+      appearance GenericTireAppearance {
+      }
+      geometry DEF obstacle_cylinder_2_geometry Cylinder {
+        height 0.1
+        radius 0.05
+      }
+    }
+  ]
+  name "solid(5)"
+  boundingObject DEF obstacle_cylinder_2_boundingObject Cylinder {
+    height 0.1
+    radius 0.05
+  }
+}
+DEF goal_cylinder Solid {
+  translation 1 0 2
+  children [
+    DEF goal_cylinder_shape Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 0 0 0
+          emissiveColor 1 0 0
+          shininess 0
+        }
+      }
+      geometry DEF goal_cylinder_geometry Cylinder {
+        height 0.1
+        radius 0.05
+      }
+    }
+  ]
+  name "solid(6)"
+  boundingObject DEF goal_cylinder_boundingObject Cylinder {
+    height 0.1
+    radius 0.05
+  }
+}
+DEF Depth_Mavic_2_PRO Mavic2Pro {
+  translation 0 0 0.1
+  rotation 0 0 1 3.141590777218456
+  name "Depth_Mavic_2_PRO"
+  controller "<extern>"
+  bodySlot [
+    TouchSensor {
+      name "touch_sensor_warning"
+      boundingObject Cylinder {
+        height 0.1
+        radius 0.7
+        subdivision 16
+      }
+    }
+    DEF touch_sensor_colision TouchSensor {
+      name "touch_sensor_colision"
+      boundingObject Cylinder {
+        height 0.1
+        radius 0.4
+        subdivision 16
+      }
+    }
+  ]
+  cameraSlot [
+    RangeFinder {
+      fieldOfView 0.7854
+      maxRange 10
+    }
+    Camera {
+      width 400
+      height 240
+      near 0.2
+    }
+  ]
+}
+Robot {
+  name "ros2_sim_manager"
+  controller "<extern>"
+  supervisor TRUE
+}

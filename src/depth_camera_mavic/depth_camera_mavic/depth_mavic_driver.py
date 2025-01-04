@@ -68,6 +68,11 @@ class DepthMavicDriver:
         self.touch_sensor_warning_publisher = self.__node.create_publisher(Bool, 'Depth_Mavic_2_PRO/touch_sensor_warning', 10)
         self.touch_sensor_colision_publisher = self.__node.create_publisher(Bool, 'Depth_Mavic_2_PRO/touch_sensor_colision', 10)
         
+        # ------------
+        self.__propellers[0].setVelocity(-10)
+        self.__propellers[1].setVelocity(10)
+        self.__propellers[2].setVelocity(10)
+        self.__propellers[3].setVelocity(-10)
     def publish_touch_sensors(self):
         ts_warning = self.__touch_sensor_warning.getValue()
         ts_colision = self.__touch_sensor_colision.getValue()
